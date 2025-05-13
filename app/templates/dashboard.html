@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard ComunicAcción</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      color: #333;
+    }
+
+    header {
+      text-align: center;
+      padding: 1.5rem 0;
+      background: linear-gradient(to right, #1e3c72, #2a5298);
+      color: white;
+      animation: slideDown 0.7s ease-in-out;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin: 1rem 0;
+      gap: 1rem;
+      animation: fadeIn 1s ease forwards;
+      margin-top: 30px;
+    }
+
+    .tabs button {
+      padding: 0.5rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      background: #fff;
+      color: #1e3c72;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .tabs button.active {
+      background: #1e3c72;
+      color: white;
+      transform: scale(1.08);
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .view {
+      display: none;
+      max-width: 1000px;
+      width: 100%;
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      margin-top: 20px;
+    }
+
+    .view.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 1;
+      transform: translateY(0);
+      animation: fadeIn 0.6s ease-in-out;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      animation: fadeIn 0.5s ease;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #4b6cb7;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+
+    .charts-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-width: 400px;
+      height: auto !important;
+      border-radius: 8px;
+      box-shadow: 0 2px px rgba(0,0,0,0.08);
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    @keyframes slideDown {
+      from {transform: translateY(-20px); opacity: 0;}
+      to {transform: translateY(0); opacity: 1;}
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Dashboard ComunicAcción</h1>
+  </header>
+
+  <div class="tabs">
+    <button id="btn-table" class="active">Tabla de Respuestas</button>
+    <button id="btn-chart">Gráficos</button>
+  </div>
+
+  <div class="container">
+    <div id="table-view" class="view active">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Tipo</th><th>Respuesta</th></tr>
+        </thead>
+        <tbody>
+          {% for r in respuestas %}
+          <tr class="fade-in" style="animation-delay: {{ loop.index * 0.1 }}s;">
+            <td>{{ r.id }}</td>
+            <td>{{ r.tipo_pregunta }}</td>
+            <td>{{ r.respuesta }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="chart-view" class="view">
+      <div class="charts-container">
+        <canvas id="pieChart"></canvas>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnTable = document.getElementById('btn-table');
+      const btnChart = document.getElementById('btn-chart');
+      const tableView = document.getElementById('table-view');
+      const chartView = document.getElementById('chart-view');
+
+      let pieChart = null;
+      let barChart = null;
+
+      btnTable.addEventListener('click', () => {
+        btnTable.classList.add('active');
+        btnChart.classList.remove('active');
+        tableView.classList.add('active');
+        chartView.classList.remove('active');
+      });
+
+      btnChart.addEventListener('click', () => {
+        btnChart.classList.add('active');
+        btnTable.classList.remove('active');
+        chartView.classList.add('active');
+        tableView.classList.remove('active');
+
+        if (!pieChart || !barChart) {
+          const data = {{ chart_data | tojson }};
+
+          // Gráfico de Torta
+          const ctx1 = document.getElementById('pieChart').getContext('2d');
+          pieChart = new Chart(ctx1, {
+            type: 'pie',
+            data: {
+              labels: data.labels,
+              datasets: [{
+                data: data.counts,
+                backgroundColor: ['#1e3c72', '#2a5298', '#ff7e5f', '#feb47b']
+              }]
+            },
+            options: {
+              responsive: true,
+              animation: {
+                animateScale: true
+              },
+              plugins: {
+                legend: { position: 'bottom' }
+              }
+            }
+          });
+
+          // Gráfico de Barras
+          const ctx2 = document.getElementById('barChart').getContext('2d');
+          barChart = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+              labels: data.labels,
+              datasets: [{
+                label: 'Cantidad',
+                data: data.counts,
+                backgroundColor: '#2a5298'
+              }]
+            },
+            options: {
+              responsive: true,
+              animation: {
+                duration: 1000,
+                easing: 'easeOutBounce'
+              },
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }
+          });
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
